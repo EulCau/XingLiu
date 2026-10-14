@@ -1,0 +1,50 @@
+name: Deploy homepage to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out homepage source from EulCau/EulCau
+        uses: actions/checkout@v6
+        with:
+          repository: EulCau/EulCau
+          ref: main
+          persist-credentials: false
+      - name: Check static JavaScript
+        run: node --check site/assets/main.js
+      - name: Prepare static website
+        run: |
+          mkdir -p _site
+          cp -R site/. _site/
+          rm _site/README.md
+          touch _site/.nojekyll
+          echo "Source commit: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Upload static website
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: '_site'
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
